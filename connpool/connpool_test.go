@@ -15,14 +15,12 @@ func TestGetPut(t *testing.T) {
 		for {
 			conn, err := l.Accept()
 			if err != nil {
-				// fmt.Println(err)
-				// continue
 				return
 			}
 			go func(conn net.Conn) {
 				bs := make([]byte, 1024)
 				n, _ := conn.Read(bs)
-				fmt.Println(string(bs[:n]))
+				t.Log(string(bs[:n]))
 				conn.Close()
 			}(conn)
 		}
@@ -61,7 +59,7 @@ func TestWithinMaxConc(t *testing.T) {
 			go func(conn net.Conn) {
 				bs := make([]byte, 1024)
 				n, _ := conn.Read(bs)
-				fmt.Println(string(bs[:n]))
+				t.Log(string(bs[:n]))
 				conn.Close()
 			}(conn)
 		}
@@ -105,7 +103,7 @@ func TestWithinMaxConc2(t *testing.T) {
 			go func(conn net.Conn) {
 				bs := make([]byte, 1024)
 				n, _ := conn.Read(bs)
-				fmt.Println(string(bs[:n]))
+				t.Log(string(bs[:n]))
 				conn.Close()
 			}(conn)
 		}
@@ -149,7 +147,7 @@ func TestOverMax1(t *testing.T) {
 			go func(conn net.Conn) {
 				bs := make([]byte, 1024)
 				n, _ := conn.Read(bs)
-				fmt.Println(string(bs[:n]))
+				t.Log(string(bs[:n]))
 				conn.Close()
 			}(conn)
 		}
@@ -194,7 +192,7 @@ func TestOverMax2(t *testing.T) {
 			go func(conn net.Conn) {
 				bs := make([]byte, 1024)
 				n, _ := conn.Read(bs)
-				fmt.Println(string(bs[:n]))
+				t.Log(string(bs[:n]))
 				conn.Close()
 			}(conn)
 		}
@@ -240,7 +238,7 @@ func TestOverMax3(t *testing.T) {
 			go func(conn net.Conn) {
 				bs := make([]byte, 1024)
 				n, _ := conn.Read(bs)
-				fmt.Println(string(bs[:n]))
+				t.Log(string(bs[:n]))
 				conn.Close()
 			}(conn)
 		}
@@ -251,8 +249,8 @@ func TestOverMax3(t *testing.T) {
 		Port:                 7000,
 		MaxConns:             10,
 		MinIdleConns:         5,
-		IdleTimeout:          100 * time.Second,
-		IdleTimeoutFrequency: 100 * time.Microsecond,
+		IdleTimeout:          60 * time.Second,
+		IdleTimeoutFrequency: time.Second,
 	})
 
 	assert.Equal(t, 5, p.GetIdleConns())
@@ -261,7 +259,9 @@ func TestOverMax3(t *testing.T) {
 	for i := 0; i < fibers; i++ {
 		go func(i int) {
 			conn, _ := p.Get()
-			conn.Conn.Write([]byte(fmt.Sprintf("client %d", i)))
+			if conn != nil {
+				conn.Conn.Write([]byte(fmt.Sprintf("client %d", i)))
+			}
 		}(i)
 	}
 
