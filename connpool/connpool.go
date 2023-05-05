@@ -23,12 +23,6 @@ type TcpConnPool struct {
 	ticker       time.Ticker
 }
 
-type TcpConn struct {
-	id        string
-	conn      net.Conn
-	createdAt time.Time
-}
-
 type Opt struct {
 	Host              string
 	Port              int
@@ -86,13 +80,8 @@ func (p *TcpConnPool) NewConn() (*TcpConn, error) {
 		id:        uuid.New().String(),
 		conn:      conn,
 		createdAt: time.Now(),
+		p:         p,
 	}, nil
-}
-
-func (p *TcpConnPool) Put(c *TcpConn) {
-	p.mu.Lock()
-	p.idleConns[c.id] = c
-	p.mu.Unlock()
 }
 
 func (p *TcpConnPool) Get() (*TcpConn, error) {

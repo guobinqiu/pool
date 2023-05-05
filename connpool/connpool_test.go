@@ -38,10 +38,10 @@ func TestGetPut(t *testing.T) {
 	assert.Equal(t, 5, p.GetIdleConns())
 
 	c, _ := p.Get()
-	c.conn.Write([]byte(fmt.Sprintf("client %d", 0)))
+	c.Write([]byte(fmt.Sprintf("client %d", 0)))
 	assert.Equal(t, 4, p.GetIdleConns())
 
-	p.Put(c)
+	c.Close()
 	assert.Equal(t, 5, p.GetIdleConns())
 
 	p.Close()
@@ -80,7 +80,7 @@ func TestWithinMaxConc(t *testing.T) {
 	for i := 0; i < fibers; i++ {
 		go func(i int) {
 			c, _ := p.Get()
-			c.conn.Write([]byte(fmt.Sprintf("client %d", i)))
+			c.Write([]byte(fmt.Sprintf("client %d", i)))
 		}(i)
 	}
 
@@ -124,7 +124,7 @@ func TestWithinMaxConc2(t *testing.T) {
 	for i := 0; i < fibers; i++ {
 		go func(i int) {
 			c, _ := p.Get()
-			c.conn.Write([]byte(fmt.Sprintf("client %d", i)))
+			c.Write([]byte(fmt.Sprintf("client %d", i)))
 		}(i)
 	}
 
@@ -170,7 +170,7 @@ func TestOverMax1(t *testing.T) {
 		if err != nil {
 			errTimes++
 		} else {
-			c.conn.Write([]byte(fmt.Sprintf("client %d", i)))
+			c.Write([]byte(fmt.Sprintf("client %d", i)))
 		}
 	}
 
@@ -215,8 +215,8 @@ func TestOverMax2(t *testing.T) {
 		if err != nil {
 			errTimes++
 		} else {
-			c.conn.Write([]byte(fmt.Sprintf("client %d", i)))
-			p.Put(c)
+			c.Write([]byte(fmt.Sprintf("client %d", i)))
+			c.Close()
 		}
 	}
 
@@ -260,7 +260,7 @@ func TestOverMax3(t *testing.T) {
 		go func(i int) {
 			c, _ := p.Get()
 			if c != nil {
-				c.conn.Write([]byte(fmt.Sprintf("client %d", i)))
+				c.Write([]byte(fmt.Sprintf("client %d", i)))
 			}
 		}(i)
 	}
