@@ -1,4 +1,4 @@
-module github.com/guobinqiu/connpool
+module github.com/guobinqiu/pool
 
 go 1.20
 
