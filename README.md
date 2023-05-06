@@ -31,13 +31,13 @@ func main() {
 		WriteTimeout:       0,
 	})
 
+	// get a connection from pool
 	c, err := p.GetConn()
-	if err != nil {
-		c.Write([]byte("something"))
-	}
-	c.Close()
-
-	c, err := p.GetConn()
+	
+	// put connection back to pool
+	c.Close() 
+	
+	// remove connection from pool
 	c.ReleaseConn()
 
 	p.Close()
