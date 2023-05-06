@@ -26,7 +26,7 @@ func TestGetPut(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -60,7 +60,7 @@ func TestGetPut2(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -99,7 +99,7 @@ func TestGetPut3(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -141,7 +141,7 @@ func TestWithinMaxConc(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -183,7 +183,7 @@ func TestWithinMaxConc2(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -225,7 +225,7 @@ func TestOverMax1(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -268,7 +268,7 @@ func TestOverMax2(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -312,7 +312,7 @@ func TestOverMax3(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:     "127.0.0.1",
 		Port:     7000,
 		PoolSize: 10,
@@ -354,7 +354,7 @@ func TestRemoveIdleConns(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:               "127.0.0.1",
 		Port:               7000,
 		PoolSize:           10,
@@ -387,7 +387,7 @@ func TestRemoveIdleConns2(t *testing.T) {
 		}
 	}()
 
-	p := NewTcpConnPool(&Opt{
+	p := NewTcpConnPool(&Option{
 		Host:               "127.0.0.1",
 		Port:               7000,
 		PoolSize:           10,

@@ -12,7 +12,7 @@ import (
 )
 
 type TcpConnPool struct {
-	opt       *Opt
+	opt       *Option
 	idleConns map[string]*TcpConn
 	numConns  int
 	mu        *sync.Mutex
@@ -20,7 +20,7 @@ type TcpConnPool struct {
 	ticker    *time.Ticker
 }
 
-type Opt struct {
+type Option struct {
 	Host               string
 	Port               int
 	PoolSize           int
@@ -37,7 +37,7 @@ type ConnReq struct {
 	errCh  chan error
 }
 
-func (opt *Opt) init() {
+func (opt *Option) init() {
 	if opt.Host == "" {
 		opt.Host = "127.0.0.1"
 	}
@@ -55,7 +55,7 @@ func (opt *Opt) init() {
 	}
 }
 
-func NewTcpConnPool(opt *Opt) *TcpConnPool {
+func NewTcpConnPool(opt *Option) *TcpConnPool {
 	opt.init()
 	p := &TcpConnPool{
 		opt:       opt,
