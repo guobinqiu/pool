@@ -24,14 +24,12 @@ type Opt struct {
 	Host               string
 	Port               int
 	PoolSize           int
-	MinIdleConns       int
+	InitCap            int
 	IdleTimeout        time.Duration
 	IdleCheckFrequency time.Duration
 	DialTimeout        time.Duration
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
-	QueueSize          int
-	QueueConnTimeout   time.Duration
 }
 
 type ConnReq struct {
@@ -55,12 +53,6 @@ func (opt *Opt) init() {
 	if opt.DialTimeout == 0 {
 		opt.DialTimeout = 5 * time.Second
 	}
-	if opt.QueueSize == 0 {
-		opt.QueueSize = 10000
-	}
-	if opt.QueueConnTimeout == 0 {
-		opt.QueueConnTimeout = 3 * time.Second
-	}
 }
 
 func NewTcpConnPool(opt *Opt) *TcpConnPool {
@@ -69,10 +61,10 @@ func NewTcpConnPool(opt *Opt) *TcpConnPool {
 		opt:       opt,
 		idleConns: make(map[string]*TcpConn, opt.PoolSize),
 		mu:        new(sync.Mutex),
-		queue:     make(chan *ConnReq, opt.QueueSize),
+		queue:     make(chan *ConnReq, 10000),
 		ticker:    time.NewTicker(opt.IdleCheckFrequency),
 	}
-	for len(p.idleConns) < opt.MinIdleConns {
+	for len(p.idleConns) < opt.InitCap {
 		c, err := p.newConn()
 		if err != nil {
 			panic(err)
@@ -100,13 +92,6 @@ func (p *TcpConnPool) newConn() (*TcpConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	now := time.Now()
-	if p.opt.ReadTimeout > 0 {
-		conn.SetReadDeadline(now.Add(p.opt.ReadTimeout))
-	}
-	if p.opt.WriteTimeout > 0 {
-		conn.SetWriteDeadline(now.Add(p.opt.WriteTimeout))
-	}
 	return &TcpConn{
 		id:   uuid.New().String(),
 		conn: conn,
@@ -117,10 +102,11 @@ func (p *TcpConnPool) newConn() (*TcpConn, error) {
 func (p *TcpConnPool) GetConn() (*TcpConn, error) {
 	p.mu.Lock()
 	if len(p.idleConns) > 0 {
-		for k, v := range p.idleConns {
-			delete(p.idleConns, k)
+		for _, c := range p.idleConns {
+			delete(p.idleConns, c.id)
 			p.mu.Unlock()
-			return v, nil
+			p.setDeadline(c)
+			return c, nil
 		}
 	}
 
@@ -131,6 +117,7 @@ func (p *TcpConnPool) GetConn() (*TcpConn, error) {
 		}
 		p.numConns++
 		p.mu.Unlock()
+		p.setDeadline(c)
 		return c, nil
 	}
 
@@ -146,8 +133,9 @@ func (p *TcpConnPool) GetConn() (*TcpConn, error) {
 
 	// blocked
 	select {
-	case conn := <-req.connCh:
-		return conn, nil
+	case c := <-req.connCh:
+		p.setDeadline(c)
+		return c, nil
 	case err := <-req.errCh:
 		return nil, err
 	}
@@ -155,7 +143,7 @@ func (p *TcpConnPool) GetConn() (*TcpConn, error) {
 
 func (p *TcpConnPool) handleQueue() {
 	for req := range p.queue {
-		t := time.After(p.opt.QueueConnTimeout)
+		t := time.After(3 * time.Second)
 		var timeout bool
 		var done bool
 		for {
@@ -207,4 +195,14 @@ func (p *TcpConnPool) ReleaseConn(c *TcpConn) {
 
 func (p *TcpConnPool) GetIdleConns() int {
 	return len(p.idleConns)
+}
+
+func (p *TcpConnPool) setDeadline(c *TcpConn) {
+	now := time.Now()
+	if p.opt.ReadTimeout > 0 {
+		c.SetReadDeadline(now.Add(p.opt.ReadTimeout))
+	}
+	if p.opt.WriteTimeout > 0 {
+		c.SetWriteDeadline(now.Add(p.opt.WriteTimeout))
+	}
 }

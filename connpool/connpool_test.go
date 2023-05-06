@@ -27,10 +27,10 @@ func TestGetPut(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 5,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  5,
 	})
 
 	assert.Equal(t, 5, p.GetIdleConns())
@@ -61,10 +61,10 @@ func TestGetPut2(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 0,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  0,
 	})
 
 	assert.Equal(t, 0, p.GetIdleConns())
@@ -100,10 +100,10 @@ func TestGetPut3(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 0,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  0,
 	})
 
 	assert.Equal(t, 0, p.GetIdleConns())
@@ -142,10 +142,10 @@ func TestWithinMaxConc(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 5,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  5,
 	})
 
 	assert.Equal(t, 5, p.GetIdleConns())
@@ -184,10 +184,10 @@ func TestWithinMaxConc2(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 5,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  5,
 	})
 
 	assert.Equal(t, 5, p.GetIdleConns())
@@ -226,10 +226,10 @@ func TestOverMax1(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 5,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  5,
 	})
 
 	assert.Equal(t, 5, p.GetIdleConns())
@@ -269,10 +269,10 @@ func TestOverMax2(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 5,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  5,
 	})
 
 	assert.Equal(t, p.GetIdleConns(), 5)
@@ -313,10 +313,10 @@ func TestOverMax3(t *testing.T) {
 	}()
 
 	p := NewTcpConnPool(&Opt{
-		Host:         "127.0.0.1",
-		Port:         7000,
-		PoolSize:     10,
-		MinIdleConns: 5,
+		Host:     "127.0.0.1",
+		Port:     7000,
+		PoolSize: 10,
+		InitCap:  5,
 	})
 
 	assert.Equal(t, 5, p.GetIdleConns())
@@ -358,7 +358,7 @@ func TestRemoveIdleConns(t *testing.T) {
 		Host:               "127.0.0.1",
 		Port:               7000,
 		PoolSize:           10,
-		MinIdleConns:       0,
+		InitCap:            0,
 		IdleTimeout:        1 * time.Second,
 		IdleCheckFrequency: 1 * time.Second,
 	})
@@ -391,7 +391,7 @@ func TestRemoveIdleConns2(t *testing.T) {
 		Host:               "127.0.0.1",
 		Port:               7000,
 		PoolSize:           10,
-		MinIdleConns:       0,
+		InitCap:            0,
 		IdleTimeout:        2 * time.Second,
 		IdleCheckFrequency: 1 * time.Second,
 	})
