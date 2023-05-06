@@ -37,8 +37,8 @@ func main() {
 	}
 	c.Close()
 
-    c, err := p.GetConn()
-    c.ReleaseConn()
+	c, err := p.GetConn()
+	c.ReleaseConn()
 
 	p.Close()
 }
