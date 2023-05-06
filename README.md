@@ -19,7 +19,7 @@ WriteTimeout|int|0 to never
 
 ```
 func main() {
-	p := connpool.NewTcpConnPool(&connpool.Opt{
+	p := pool.NewTcpConnPool(&connpool.Opt{
 		Host:               "127.0.0.1",
 		Port:               7000,
 		PoolSize:           10,
