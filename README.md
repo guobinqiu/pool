@@ -43,3 +43,9 @@ func main() {
 	p.Close()
 }
 ```
+
+### Run Test
+
+```
+go clean -testcache && go test -v .
+```
