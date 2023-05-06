@@ -64,13 +64,20 @@ func NewTcpConnPool(opt *Option) *TcpConnPool {
 		queue:     make(chan *ConnReq, 10000),
 		ticker:    time.NewTicker(opt.IdleCheckFrequency),
 	}
-	for len(p.idleConns) < opt.InitCap {
+	for i := 0; i < opt.InitCap; i++ {
 		c, err := p.newConn()
 		if err != nil {
 			panic(err)
 		}
 		p.idleConns[c.id] = c
 		p.numConns++
+		now := time.Now()
+		if p.opt.ReadTimeout > 0 {
+			c.SetReadDeadline(now.Add(p.opt.ReadTimeout))
+		}
+		if p.opt.WriteTimeout > 0 {
+			c.SetWriteDeadline(now.Add(p.opt.WriteTimeout))
+		}
 	}
 	go p.handleQueue()
 	go p.release()
