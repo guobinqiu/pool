@@ -1,8 +1,6 @@
 package pool
 
 import (
-	"errors"
-	"fmt"
 	"net"
 	"runtime"
 	"sync"
@@ -11,38 +9,31 @@ import (
 	"github.com/google/uuid"
 )
 
-type TcpConnPool struct {
-	opt       *Option
-	idleConns map[string]*TcpConn
-	numConns  int
-	mu        *sync.Mutex
-	queue     chan *ConnReq
-	ticker    *time.Ticker
+type connPool struct {
+	factory            ConnFactory
+	initCap            int
+	maxCap             int
+	idleTimeout        time.Duration
+	idleCheckFrequency time.Duration
+	idleConns          map[string]*Conn
+	numConns           int
+	mu                 *sync.Mutex
+	reqQueue           chan *ConnReq
+	ticker             *time.Ticker
+	quit               chan struct{}
 }
 
 type Option struct {
-	Host               string
-	Port               int
-	PoolSize           int
+	Factory            ConnFactory
 	InitCap            int
+	MaxCap             int
 	IdleTimeout        time.Duration
 	IdleCheckFrequency time.Duration
-	DialTimeout        time.Duration
-	ReadTimeout        time.Duration
-	WriteTimeout       time.Duration
-}
-
-type ConnReq struct {
-	connCh chan *TcpConn
-	errCh  chan error
 }
 
 func (opt *Option) init() {
-	if opt.Host == "" {
-		opt.Host = "127.0.0.1"
-	}
-	if opt.PoolSize == 0 {
-		opt.PoolSize = 10 * runtime.NumCPU()
+	if opt.MaxCap == 0 {
+		opt.MaxCap = 10 * runtime.NumCPU()
 	}
 	if opt.IdleTimeout == 0 {
 		opt.IdleTimeout = 5 * time.Minute
@@ -50,78 +41,69 @@ func (opt *Option) init() {
 	if opt.IdleCheckFrequency == 0 {
 		opt.IdleCheckFrequency = time.Minute
 	}
-	if opt.DialTimeout == 0 {
-		opt.DialTimeout = 5 * time.Second
+	if opt.Factory == nil || opt.InitCap < 0 || opt.MaxCap < 0 || opt.InitCap > opt.MaxCap {
+		panic("invalid capacity settings")
 	}
 }
 
-func NewTcpConnPool(opt *Option) *TcpConnPool {
+type ConnFactory func() (net.Conn, error)
+
+type ConnReq struct {
+	connCh chan *Conn
+}
+
+func NewConnPool(opt *Option) *connPool {
 	opt.init()
-	p := &TcpConnPool{
-		opt:       opt,
-		idleConns: make(map[string]*TcpConn, opt.PoolSize),
-		mu:        new(sync.Mutex),
-		queue:     make(chan *ConnReq, 10000),
-		ticker:    time.NewTicker(opt.IdleCheckFrequency),
+	p := &connPool{
+		factory:            opt.Factory,
+		maxCap:             opt.MaxCap,
+		initCap:            opt.InitCap,
+		idleTimeout:        opt.IdleTimeout,
+		idleCheckFrequency: opt.IdleCheckFrequency,
+		idleConns:          make(map[string]*Conn, opt.MaxCap),
+		mu:                 new(sync.Mutex),
+		reqQueue:           make(chan *ConnReq, 10000),
+		ticker:             time.NewTicker(opt.IdleCheckFrequency),
+		quit:               make(chan struct{}, 1),
 	}
-	for i := 0; i < opt.InitCap; i++ {
+
+	for i := 0; i < p.initCap; i++ {
 		c, err := p.newConn()
 		if err != nil {
 			panic(err)
 		}
 		p.idleConns[c.id] = c
 		p.numConns++
-		now := time.Now()
-		if p.opt.ReadTimeout > 0 {
-			c.SetReadDeadline(now.Add(p.opt.ReadTimeout))
-		}
-		if p.opt.WriteTimeout > 0 {
-			c.SetWriteDeadline(now.Add(p.opt.WriteTimeout))
-		}
 	}
-	go p.handleQueue()
+
+	go p.handleReqQueue()
 	go p.release()
+
 	return p
 }
 
-func (p *TcpConnPool) Close() {
-	close(p.queue)
+func (p *connPool) Close() {
+	p.quit <- struct{}{}
+	close(p.reqQueue)
 	p.ticker.Stop()
 	for _, c := range p.idleConns {
-		c.conn.Close()
 		p.ReleaseConn(c)
 	}
 }
 
-func (p *TcpConnPool) newConn() (*TcpConn, error) {
-	addr := fmt.Sprintf("%s:%d", p.opt.Host, p.opt.Port)
-	conn, err := net.DialTimeout("tcp", addr, p.opt.DialTimeout) //only accept tcp for now
+func (p *connPool) newConn() (*Conn, error) {
+	conn, err := p.factory()
 	if err != nil {
 		return nil, err
 	}
-	return &TcpConn{
+	return &Conn{
 		id:   uuid.New().String(),
 		conn: conn,
 		p:    p,
 	}, nil
 }
 
-func (p *TcpConnPool) GetConn() (*TcpConn, error) {
-	c, err := p.getConn()
-	if err != nil {
-		return nil, err
-	}
-	now := time.Now()
-	if p.opt.ReadTimeout > 0 {
-		c.SetReadDeadline(now.Add(p.opt.ReadTimeout))
-	}
-	if p.opt.WriteTimeout > 0 {
-		c.SetWriteDeadline(now.Add(p.opt.WriteTimeout))
-	}
-	return c, nil
-}
-
-func (p *TcpConnPool) getConn() (*TcpConn, error) {
+func (p *connPool) GetConn() (*Conn, error) {
 	p.mu.Lock()
 	if len(p.idleConns) > 0 {
 		for _, c := range p.idleConns {
@@ -131,7 +113,7 @@ func (p *TcpConnPool) getConn() (*TcpConn, error) {
 		}
 	}
 
-	if p.numConns < p.opt.PoolSize {
+	if p.numConns < p.maxCap {
 		c, err := p.newConn()
 		if err != nil {
 			return nil, err
@@ -141,50 +123,37 @@ func (p *TcpConnPool) getConn() (*TcpConn, error) {
 		return c, nil
 	}
 
-	//p.openConns == p.PoolSize
-	// come to queue
+	//p.openConns == p.MaxCap
 	req := &ConnReq{
-		connCh: make(chan *TcpConn, 1),
-		errCh:  make(chan error, 1),
+		connCh: make(chan *Conn, 1),
 	}
-	p.queue <- req
+	p.reqQueue <- req
 
 	p.mu.Unlock()
 
 	// blocked
-	select {
-	case c := <-req.connCh:
-		return c, nil
-	case err := <-req.errCh:
-		return nil, err
-	}
+	c := <-req.connCh
+	return c, nil
 }
 
-func (p *TcpConnPool) handleQueue() {
-	for req := range p.queue {
-		t := time.After(3 * time.Second)
-		var timeout bool
-		var done bool
-		for {
-			if timeout || done {
-				break
-			}
-			select {
-			case <-t:
-				req.errCh <- errors.New("request timeout")
-				timeout = true
-			default:
-				if len(p.idleConns) > 0 {
-					req.connCh <- p.popConn()
-					done = true
-				}
-			}
-			time.Sleep(10 * time.Millisecond)
+func (p *connPool) handleReqQueue() {
+	for req := range p.reqQueue {
+		p.mu.Lock()
+		if len(p.idleConns) > 0 {
+			req.connCh <- p.popConn()
+			continue
 		}
+		select {
+		case <-p.quit:
+			return
+		default:
+			p.reqQueue <- req
+		}
+		p.mu.Unlock()
 	}
 }
 
-func (p *TcpConnPool) popConn() *TcpConn {
+func (p *connPool) popConn() *Conn {
 	p.mu.Lock()
 	for _, c := range p.idleConns {
 		delete(p.idleConns, c.id)
@@ -194,17 +163,17 @@ func (p *TcpConnPool) popConn() *TcpConn {
 	return nil
 }
 
-func (p *TcpConnPool) release() {
+func (p *connPool) release() {
 	for range p.ticker.C {
 		for _, c := range p.idleConns {
-			if time.Now().After(c.homedAt.Add(p.opt.IdleTimeout)) {
+			if time.Now().After(c.homedAt.Add(p.idleTimeout)) {
 				p.ReleaseConn(c)
 			}
 		}
 	}
 }
 
-func (p *TcpConnPool) ReleaseConn(c *TcpConn) {
+func (p *connPool) ReleaseConn(c *Conn) {
 	p.mu.Lock()
 	delete(p.idleConns, c.id)
 	p.numConns--
@@ -212,6 +181,6 @@ func (p *TcpConnPool) ReleaseConn(c *TcpConn) {
 	p.mu.Unlock()
 }
 
-func (p *TcpConnPool) GetIdleConns() int {
+func (p *connPool) GetIdleConns() int {
 	return len(p.idleConns)
 }

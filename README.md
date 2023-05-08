@@ -1,50 +1,52 @@
-TCP Connection Pool
+A High Performance Connection Pool
 ---
 
-### Configuration
+### Params
 
-name|type|desc
+name|required|desc
 ---|---|---
-Host|string|remote server ip, default to 127.0.0.1
-Port|int|remote server port
-PoolSize|int|default to 10 * CPU cores
-InitCap|int|default to PoolSize/2
+Factory|Y|net.Conn generator
+InitCap|N|default to 0
+MaxCap|N|default to 10 * CPU cores
 IdleTimeout|int|default to 5 minutes
 IdleCheckFrequency|int|default to 1 minutes
-DialTimeout|int|default to 5 seconds
-ReadTimeout|int|0 to never
-WriteTimeout|int|0 to never
 
-### Example
+### Usage
 
 ```
+package main
+
+import (
+	"net"
+	"time"
+
+	"github.com/guobinqiu/pool"
+)
+
 func main() {
-	p := pool.NewTcpConnPool(&connpool.Opt{
-		Host:               "127.0.0.1",
-		Port:               7000,
-		PoolSize:           10,
-		MinIdleConns:       5,
+	pool := pool.NewConnPool(&pool.Option{
+		Factory: func() (net.Conn, error) {
+			return net.Dial("tcp", "host:port")
+		},
+		InitCap:            5,
+		MaxCap:             10,
 		IdleTimeout:        5 * time.Minute,
-		IdleCheckFrequency: 1 * time.Minute,
-		DialTimeout:        5 * time.Second,
-		ReadTimeout:        0,
-		WriteTimeout:       0,
+		IdleCheckFrequency: time.Minute,
 	})
-
 	// get a connection from pool
-	c, err := p.GetConn()
-	
-	// put connection back to pool
-	c.Close() 
-	
-	// remove connection from pool
-	c.ReleaseConn()
+	c, _ := pool.GetConn()
 
-	p.Close()
+	// put connection back to pool
+	c.Close()
+
+	// remove connection from pool
+	pool.ReleaseConn(c)
+
+	pool.Close()
 }
 ```
 
-### Run Test
+### Test
 
 ```
 go clean -testcache && go test -v .
