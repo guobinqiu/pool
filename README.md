@@ -31,7 +31,7 @@ func main() {
 		InitCap:            5,
 		MaxCap:             10,
 		IdleTimeout:        5 * time.Minute,
-		IdleCheckFrequency: time.Minute,
+		IdleCheckFrequency: 1 * time.Minute,
 	})
 	
 	// get a connection from pool
