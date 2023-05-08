@@ -8,8 +8,8 @@ name|required|desc
 Factory|Y|net.Conn generator
 InitCap|N|default to 0
 MaxCap|N|default to 10 * CPU cores
-IdleTimeout|int|default to 5 minutes
-IdleCheckFrequency|int|default to 1 minutes
+IdleTimeout|N|default to 5 minutes
+IdleCheckFrequency|N|default to 1 minutes
 
 ### Usage
 
@@ -33,6 +33,7 @@ func main() {
 		IdleTimeout:        5 * time.Minute,
 		IdleCheckFrequency: time.Minute,
 	})
+	
 	// get a connection from pool
 	c, _ := pool.GetConn()
 
