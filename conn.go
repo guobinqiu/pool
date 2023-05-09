@@ -6,7 +6,7 @@ import (
 )
 
 type Conn struct {
-	id      string
+	id      int64
 	conn    net.Conn
 	homedAt time.Time
 	p       *connPool

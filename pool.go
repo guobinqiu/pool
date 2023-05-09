@@ -6,8 +6,6 @@ import (
 	"runtime"
 	"sync"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type connPool struct {
@@ -16,7 +14,7 @@ type connPool struct {
 	maxCap             int
 	idleTimeout        time.Duration
 	idleCheckFrequency time.Duration
-	idleConns          map[string]*Conn
+	idleConns          map[int64]*Conn
 	numConns           int
 	mu                 *sync.Mutex
 	reqQueue           chan *ConnReq
@@ -61,7 +59,7 @@ func NewConnPool(opt *Option) *connPool {
 		initCap:            opt.InitCap,
 		idleTimeout:        opt.IdleTimeout,
 		idleCheckFrequency: opt.IdleCheckFrequency,
-		idleConns:          make(map[string]*Conn, opt.MaxCap),
+		idleConns:          make(map[int64]*Conn, opt.MaxCap),
 		mu:                 new(sync.Mutex),
 		reqQueue:           make(chan *ConnReq, 10000),
 		ticker:             time.NewTicker(opt.IdleCheckFrequency),
@@ -99,7 +97,7 @@ func (p *connPool) newConn() (*Conn, error) {
 		return nil, err
 	}
 	return &Conn{
-		id:   uuid.New().String(),
+		id:   time.Now().UnixNano(),
 		conn: conn,
 		p:    p,
 	}, nil
