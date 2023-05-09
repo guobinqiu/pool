@@ -183,3 +183,27 @@ func TestReleaseUntimeout(t *testing.T) {
 
 	p.Close()
 }
+
+func TestRequestAbandoned(t *testing.T) {
+	p := NewConnPool(&Option{
+		Factory: factory,
+		MaxCap:  10,
+	})
+
+	errs := 0
+	for i := 0; i < 20000; i++ {
+		go func() {
+			_, err := p.GetConn()
+			if err != nil {
+				p.mu.Lock()
+				errs++
+				p.mu.Unlock()
+			}
+		}()
+	}
+
+	time.Sleep(time.Second)
+
+	assert.True(t, errs > 0)
+	p.Close()
+}

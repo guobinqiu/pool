@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"errors"
 	"net"
 	"runtime"
 	"sync"
@@ -77,6 +78,7 @@ func NewConnPool(opt *Option) *connPool {
 	}
 
 	go p.handleReqQueue()
+
 	go p.release()
 
 	return p
@@ -124,6 +126,11 @@ func (p *connPool) GetConn() (*Conn, error) {
 	}
 
 	//p.openConns == p.MaxCap
+	if len(p.reqQueue) >= 10000 {
+		p.mu.Unlock()
+		return nil, errors.New("request abandoned")
+	}
+
 	req := &ConnReq{
 		connCh: make(chan *Conn, 1),
 	}
@@ -140,16 +147,28 @@ func (p *connPool) handleReqQueue() {
 	for req := range p.reqQueue {
 		p.mu.Lock()
 		if len(p.idleConns) > 0 {
+			p.mu.Unlock()
 			req.connCh <- p.popConn()
 			continue
 		}
+
+		//code here is a little bit tricky
+		//to prevent write to a close channel under high cocurrency situation
 		select {
 		case <-p.quit:
 			return
+		case <-time.After(10 * time.Microsecond):
+			return
 		default:
 			p.reqQueue <- req
+			p.mu.Unlock()
+			select {
+			case <-p.quit:
+				return
+			case <-time.After(10 * time.Microsecond):
+				return
+			}
 		}
-		p.mu.Unlock()
 	}
 }
 
