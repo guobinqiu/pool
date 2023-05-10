@@ -151,7 +151,7 @@ func (p *connPool) handleReqQueue() {
 		}
 
 		//code here is a little bit tricky
-		//to prevent write to a close channel under high cocurrency situation
+		//do double quit in the case of writing to a close channel
 		select {
 		case <-p.quit:
 			return
