@@ -40,9 +40,10 @@ func main() {
 	// put connection back to pool
 	c.Close()
 
-	// remove connection from pool
+	// remove a connection from pool
 	pool.ReleaseConn(c)
 
+	// close the pool
 	pool.Close()
 }
 ```
