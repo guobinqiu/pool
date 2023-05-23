@@ -151,7 +151,7 @@ func (p *connPool) handleReqQueue() {
 		}
 
 		//code here is a little bit tricky
-		//do double quit in the case of writing to a close channel
+		//quit twice in case of writing to a closed channel
 		select {
 		case <-p.quit:
 			return
